@@ -1,0 +1,282 @@
+PROGRAM GAME(INPUT, OUTPUT);
+
+USES
+  TURTLEGRAPHICS, APPLESTUFF;
+  
+TYPE
+  POINTER = ^MYRECORD;
+  MYRECORD = RECORD
+    NORTH, SOUTH, EAST, WEST : POINTER;
+    ROOM : INTEGER;
+    WUMPUS : BOOLEAN;
+  END;
+  PTRARRAY = ARRAY[1..9] OF POINTER;
+  NUMERALS = ARRAY[1..70] OF INTEGER;
+  MYARRAY = ARRAY[1..36] OF INTEGER;
+  
+VAR
+  EHOR, OHOR, MAN, MAZE: NUMERALS;
+  INFILE, OUTFILE : TEXT;
+  W, X, Y, Z : INTEGER;
+  AGAIN : char;
+  ROOT : POINTER;
+  
+PROCEDURE STILL(X, Y : INTEGER;
+                MAN : NUMERALS);
+
+VAR
+  J : INTEGER;
+  
+BEGIN
+  FOR J := 1 TO 13 DO
+    MOVETO(X + MAN[J], Y + MAN[13+J]);
+END;
+  
+PROCEDURE EVEN(I, X, Y : INTEGER;
+               EHOR : NUMERALS);
+               
+VAR
+  J : INTEGER;
+  
+BEGIN
+  FOR J := 1 TO 17 DO
+    MOVETO(X + EHOR[J]*I, Y + EHOR[17+J]);
+END;
+
+PROCEDURE ODD(I, X, Y : INTEGER;
+              OHOR : NUMERALS);
+              
+VAR
+  J : INTEGER;
+  
+BEGIN
+  FOR J := 1 TO 10 DO
+    MOVETO(X + OHOR[J]*I, Y + OHOR[10+J]);
+END;
+
+PROCEDURE FILEOP(VAR EHOR, OHOR, MAN, MAZE : NUMERALS;
+                 VAR DATA : MYARRAY);
+
+VAR
+  I : INTEGER;
+  
+BEGIN
+  RESET(INFILE, '#5:WUMPDATA.TEXT');
+  FOR I := 1 TO 36 DO
+    READLN(INFILE, DATA[I]);
+  CLOSE(INFILE);
+  RESET(INFILE, '#5:EVEN.TEXT');
+  FOR I := 1 TO 34 DO
+    READLN(INFILE, EHOR[I]);
+  CLOSE(INFILE);
+  RESET(INFILE, '#5:ODD.TEXT');
+  FOR I := 1 TO 20 DO
+    READLN(INFILE, OHOR[I]);
+  CLOSE(INFILE);
+  RESET(INFILE, '#5:MAN.TEXT');
+  FOR I := 1 TO 26 DO
+    READLN(INFILE, MAN[I]);
+  CLOSE(INFILE);
+  RESET(INFILE, '#5:MAZE.TEXT');
+  FOR I := 1 TO 38 DO 
+    READLN(INFILE, MAZE[I]);
+  CLOSE(INFILE);
+END;
+  
+PROCEDURE SETUP(VAR ROOT : POINTER;
+                VAR EHOR, OHOR, MAN, MAZE : NUMERALS);
+                
+VAR
+  DATA : MYARRAY;
+  N, J : INTEGER;
+  T : PTRARRAY;
+  
+BEGIN
+  N := 1;
+  FILEOP(EHOR, OHOR, MAN, MAZE, DATA);
+  FOR J := 1 TO 9 DO
+    NEW(T[J]);
+  FOR J := 1 TO 9 DO
+    BEGIN
+      T[J]^.NORTH := T[DATA[N]];
+      T[J]^.SOUTH := T[DATA[N+1]];
+      T[J]^.EAST := T[DATA[N+2]];
+      T[J]^.WEST := T[DATA[N+3]];
+      T[J]^.ROOM := J;
+      IF J = 6 THEN
+        T[J]^.WUMPUS := TRUE
+      ELSE
+        T[J]^.WUMPUS := FALSE;
+      N := N + 4;
+    END;
+  ROOT := T[1];
+END;
+
+PROCEDURE START(VAR X,Y : INTEGER;
+                MAZE : NUMERALS;
+                PLACE : INTEGER);
+                
+VAR
+  I : INTEGER;
+  
+BEGIN
+  TEXTMODE;
+  PAGE(OUTPUT);
+  FOR I := 1 TO 10 DO
+    WRITELN;
+  WRITELN('                     PREPARE YOURSELF TO ENTER ROOM#',PLACE,'!');
+  WRITELN('                H I T   R E T U R N   T O   P R O C E E D');
+  READLN;
+  INITTURTLE;
+  PENCOLOR(BLACK);
+  MOVETO(125,20);
+  PENCOLOR(WHITE);
+  FOR I := 1 TO 19 DO
+    MOVETO(MAZE[I],MAZE[19+I]);
+  X := 140;
+  Y := 35;
+  PENCOLOR(BLACK);
+  MOVETO(X,Y);
+  PENCOLOR(WHITE);
+  STILL(X,Y,MAN);
+END;
+
+PROCEDURE GO(I, J, K: INTEGER;
+             EHOR, OHOR : NUMERALS;
+             VAR X, Y : INTEGER);
+             
+BEGIN
+  PENCOLOR(BLACK);
+  MOVETO(X,Y);
+  IF X/2=TRUNC(X/2) THEN
+    EVEN(I,X,Y,EHOR)
+  ELSE
+    ODD(I,X,Y,OHOR);
+  X := X + 3*J;
+  Y := Y + K;
+  NOTE(X-Y,2);
+  MOVETO(X,Y);
+  PENCOLOR(WHITE);
+  IF X/2=TRUNC(X/2) THEN
+    EVEN(I,X,Y,EHOR)
+  ELSE
+    ODD(I,X,Y,OHOR);
+END;
+
+PROCEDURE PLAY(ROOT : POINTER;
+               VAR X, Y : INTEGER;
+               EHOR, OHOR, MAN, MAZE : NUMERALS);
+
+VAR
+  I, J, K, T : INTEGER;
+  CHOICE : CHAR;
+  ERASE, DONE, FIRST, FINISHED : BOOLEAN;
+  CURRENT : POINTER;
+  
+BEGIN
+  i := 1;
+  done := false;
+  FINISHED := FALSE;
+  CURRENT := ROOT;
+  START(X, Y, MAZE, CURRENT^.ROOM);
+  REPEAT
+    REPEAT
+      IF Y > 40 THEN
+        BEGIN
+          CURRENT := CURRENT^.NORTH;
+          FINISHED := TRUE;
+        END;
+      IF Y<25 THEN
+        BEGIN
+          CURRENT := CURRENT^.SOUTH;
+          FINISHED := TRUE;
+        END;
+      IF X>210 THEN
+        BEGIN
+          CURRENT := CURRENT^.EAST;
+          FINISHED := TRUE;
+        END;
+      IF X<70 THEN
+        BEGIN
+          CURRENT := CURRENT^.WEST;
+          FINISHED := TRUE;
+        END; 
+      IF KEYPRESS THEN
+        BEGIN
+          FIRST := TRUE;
+          READ(CHOICE);
+          IF ERASE THEN
+            BEGIN
+              PENCOLOR(BLACK);
+              STILL(X,Y,MAN);
+              ERASE := FALSE;
+            END;
+          CASE CHOICE OF
+            'a' : BEGIN
+                    I := -1;
+                    J := I;
+                    K := 0;
+                  END;
+            'd' : BEGIN
+                    I := 1;
+                    J := I;
+                    K := 0;
+                  END;
+            'w' : BEGIN
+                    J := 0;
+                    K := 1;
+                  END;
+            'x' : BEGIN
+                    J := 0;
+                    K := -1;
+                  END;
+            'q' : begin
+                    DONE := TRUE;
+                    finished := true;
+                  end;
+          END;
+          IF CHOICE IN ['a','d','w','x'] THEN
+            GO(I,J,K,EHOR,OHOR,X,Y);
+        END
+      ELSE
+        BEGIN
+          IF FIRST THEN
+            BEGIN
+              PENCOLOR(BLACK);
+              IF X/2=TRUNC(X/2) THEN
+                EVEN(I,X,Y,EHOR)
+              ELSE
+                ODD(I,X,Y,OHOR);
+              FIRST := FALSE;
+            END;
+          MOVETO(X,Y);
+          PENCOLOR(WHITE);
+          STILL(X,Y,MAN);
+          ERASE := TRUE;
+        END;
+      UNTIL FINISHED;
+      for t := 1 to 200 do
+        begin
+        end;
+      IF CURRENT^.WUMPUS=TRUE THEN 
+        DONE := TRUE;
+      START(X,Y,MAZE,CURRENT^.ROOM);
+      FINISHED := FALSE;
+    UNTIL DONE;
+    TEXTMODE;
+    PAGE(OUTPUT);
+    writeln('the wumpus gotcha!!!!!!!!!!!');
+    for T := 1 to 150 do
+    note(T,2);
+END;
+
+BEGIN
+  writeln('MAKE SURE YOU ARE IN LOWER CASE...');
+  SETUP(ROOT, EHOR, OHOR, MAN, MAZE);
+  REPEAT
+    PLAY(ROOT, X, Y, EHOR, OHOR, MAN, MAZE);
+    write('DO YOU WISH TO PLAY AGAIN?');
+    READLN(AGAIN);
+  UNTIL AGAIN='n';
+END.
+
